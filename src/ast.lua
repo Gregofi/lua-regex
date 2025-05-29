@@ -10,7 +10,7 @@
 
 ---@class StrNode
 ---@field kind "str"
----@field char string
+---@field str string
 
 ---@class DotNode
 ---@field kind "dot"
@@ -116,5 +116,43 @@ function AST.to_string(node)
   end
 end
 
+---@param n AST
+---@param v table<string, fun(n: AST, v: function): any>
+---@return any
+function AST.visit(n, v)
+  local handler = v[n.kind]
+  if handler then
+    return handler(n, function(n) return AST.visit(n, v) end)
+  else
+    error("No visitor function for kind: " .. tostring(node.kind))
+  end
+end
+
+--- @param ast AST
+--- @return any
+function AST.map(n, f)
+    return AST.visit(n, {
+        str = function(n) return f(n) end,
+        dot = function(n) return f(n) end,
+        concat = function(n, visit)
+            return f(AST.concat(visit(n.left), visit(n.right)))
+        end,
+        alt = function(n, visit)
+            return f(AST.alt(visit(n.left), visit(n.right)))
+        end,
+        star = function(n, visit)
+            return f(AST.star(visit(n.expr)))
+        end,
+        plus = function(n, visit)
+            return f(AST.plus(visit(n.expr)))
+        end,
+        opt = function(n, visit)
+            return f(AST.opt(visit(n.expr)))
+        end,
+        group = function(n, visit)
+            return f(AST.group(visit(n.expr)))
+        end
+    })
+end
 
 return AST
