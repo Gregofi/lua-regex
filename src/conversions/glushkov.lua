@@ -1,6 +1,7 @@
 local _M = {}
 local AST = require("ast")
 local utils = require("utils")
+local fa = require("fa")
 
 --- Returns true if the given regex can generate empty string.
 --- @param ast AST
@@ -80,7 +81,7 @@ function _M.number(ast)
 end
 
 --- @param ast AST
---- @return table[]
+--- @return AST[][]
 function _M.neighbours(ast)
      return AST.visit(ast, {
         str = function(n) return {} end,
@@ -97,7 +98,7 @@ function _M.neighbours(ast)
 
             for _, end_node in ipairs(left_ends) do
                 for _, start_node in ipairs(right_starts) do
-                    neigh[#neigh + 1] = { from = end_node, to = start_node }
+                    neigh[#neigh + 1] = { end_node, start_node }
                 end
             end
 
@@ -116,7 +117,7 @@ function _M.neighbours(ast)
 
             for _, end_node in ipairs(ends) do
                 for _, start_node in ipairs(starts) do
-                    expr_neighbours[#expr_neighbours + 1] = { from = end_node, to = start_node }
+                    expr_neighbours[#expr_neighbours + 1] = { end_node, start_node }
                 end
             end
 
@@ -132,7 +133,7 @@ function _M.neighbours(ast)
 
             for _, end_node in ipairs(ends) do
                 for _, start_node in ipairs(starts) do
-                    expr_neighbours[#expr_neighbours + 1] = { from = end_node, to = start_node }
+                    expr_neighbours[#expr_neighbours + 1] = { end_node, start_node }
                 end
             end
 
@@ -141,6 +142,71 @@ function _M.neighbours(ast)
         opt = function(n, visit) return visit(n.expr) end,
         group = function(n, visit) return visit(n.expr) end,
     })
+end
+
+--- Builds NFA from neighbours.
+--- Is completely missing starting state and has terminating states empty.
+--- @param neighbours AST[][]
+--- @param starts AST[]
+--- @param ends AST[]
+--- @return NFA
+function _M.build_nfa_from_neighbours(neighbours, starts, ends)
+    -- Map of 'ast.pos' -> index of corresponding state in nfa
+    local states_idx_map = {}
+
+    local nfa = fa.new_nfa()
+
+    --- Returns the index of the state in the NFA
+    --- It creates a new state if it does not exist.
+    local function at(node)
+        local idx
+        if not states_idx_map[node.pos] then
+            table.insert(nfa.states, {
+                transitions = {},
+            })
+            local i = #nfa.states
+            states_idx_map[node.pos] = i
+            idx = i
+        else
+            idx = states_idx_map[node.pos]
+        end
+
+        return idx
+    end
+
+    -- For each neighbour a -> b, create a transition rule from a to b.
+    for _, nodes in ipairs(neighbours) do
+        local node_from = nodes[1]
+        local node_to = nodes[2]
+
+        local idx_from = at(node_from)
+        local idx_to = at(node_to)
+
+        local from_state = nfa.states[idx_from]
+        if node_to.kind ~= 'str' then
+            error("Only 'str' characters are supported at the moment (. is unsupported)")
+        end
+
+        from_state.transitions[node_to.str] = from_state.transitions[node_to.str] or {}
+        table.insert(from_state.transitions[node_to.str], idx_to)
+    end
+
+    -- Create transitions from start state to all symbols which
+    -- can be at the beginning
+    for _, node in ipairs(starts) do
+        assert(node.kind == "str")
+        local t = nfa.states[1].transitions
+        t[node.str] = t[node.str] or {}
+        table.insert(t[node.str], states_idx_map[node.pos])
+    end
+
+    -- Mark ending states as such
+    for _, node in ipairs(ends) do
+        assert(node.kind == "str")
+        table.insert(nfa.accept, states_idx_map[node.pos])
+    end
+
+    return nfa
 end
 
 --- @param ast AST
@@ -160,6 +226,10 @@ function _M.glushkov(ast)
     -- (not all symbols! for example *, +, ?, |, and ()
     -- are not states, but . is).
     local neighbours = _M.neighbours(ast)
+
+    local nfa = _M.build_nfa_from_neighbours(neighbours, starts, ends)
+
+    return nfa
 end
 
 return _M
