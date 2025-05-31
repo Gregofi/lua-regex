@@ -60,7 +60,7 @@ local function new_parser(input)
     --- @param left AST
     --- @return AST
     function parser:Alt_(left)
-        if self:curr() == '|' then
+        if self:curr() == "|" then
             self:advance()
             local right = self:Conc()
             return self:Alt_(AST.alt(left, right))
@@ -81,7 +81,7 @@ local function new_parser(input)
         -- Therefore, we calculate first(R) and if we match,
         -- we continue parsing C'. Otherwise, we are ε rule and return left.
         local c = self:curr()
-        if c == '(' or c == '.' or c:match('%a') then
+        if c == "(" or c == "." or c:match("%a") then
             -- do not shift here
             local right = self:Rep()
             return self:Conc_(AST.concat(left, right))
@@ -99,13 +99,13 @@ local function new_parser(input)
     --- @return AST
     function parser:Rep_(left)
         local c = self:curr()
-        if c == '*' then
+        if c == "*" then
             self:advance()
             return AST.star(left)
-        elseif c == '+' then
+        elseif c == "+" then
             self:advance()
             return AST.plus(left)
-        elseif c == '?' then
+        elseif c == "?" then
             self:advance()
             return AST.opt(left)
         end
@@ -115,18 +115,18 @@ local function new_parser(input)
     --- @return AST
     function parser:Atom()
         local c = self:curr()
-        if c == '(' then
+        if c == "(" then
             self:advance()
             local expr = self:Start()
-            if self:curr() ~= ')' then
+            if self:curr() ~= ")" then
                 self:error("Expected ')'")
             end
             self:advance() -- consume ')'
             return AST.group(expr)
-        elseif c == '.' then
+        elseif c == "." then
             self:advance()
             return AST.dot()
-        elseif c:match('%a') then
+        elseif c:match("%a") then
             self:advance()
             return AST.str(c)
         else

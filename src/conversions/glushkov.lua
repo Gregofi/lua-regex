@@ -8,14 +8,30 @@ local fa = require("fa")
 --- @return boolean
 function _M.epsilon(ast)
     return AST.visit(ast, {
-        str = function(n) return false end,
-        dot = function(n) return false end,
-        concat = function(n, visit) return visit(n.left) and visit(n.right) end,
-        alt = function(n, visit) return visit(n.left) or visit(n.right) end,
-        star = function(n, visit) return true end,
-        plus = function(n, visit) return false end,
-        opt = function(n, visit) return true end,
-        group = function(n, visit) return visit(n.expr) end
+        str = function(n)
+            return false
+        end,
+        dot = function(n)
+            return false
+        end,
+        concat = function(n, visit)
+            return visit(n.left) and visit(n.right)
+        end,
+        alt = function(n, visit)
+            return visit(n.left) or visit(n.right)
+        end,
+        star = function(n, visit)
+            return true
+        end,
+        plus = function(n, visit)
+            return false
+        end,
+        opt = function(n, visit)
+            return true
+        end,
+        group = function(n, visit)
+            return visit(n.expr)
+        end,
     })
 end
 
@@ -25,8 +41,12 @@ end
 --- @return AST[]
 function _M.starts(ast)
     return AST.visit(ast, {
-        str = function(n) return { n } end,
-        dot = function(n) return { n } end,
+        str = function(n)
+            return { n }
+        end,
+        dot = function(n)
+            return { n }
+        end,
         concat = function(n, visit)
             local left_starts = visit(n.left)
             if _M.epsilon(n.left) then
@@ -35,21 +55,34 @@ function _M.starts(ast)
                 return left_starts
             end
         end,
-        alt = function(n, visit) return utils.append_lst(visit(n.left), visit(n.right)) end,
-        star = function(n, visit) return visit(n.expr) end,
-        plus = function(n, visit) return visit(n.expr) end,
-        opt = function(n, visit) return visit(n.expr) end,
-        group = function(n, visit) return visit(n.expr) end
+        alt = function(n, visit)
+            return utils.append_lst(visit(n.left), visit(n.right))
+        end,
+        star = function(n, visit)
+            return visit(n.expr)
+        end,
+        plus = function(n, visit)
+            return visit(n.expr)
+        end,
+        opt = function(n, visit)
+            return visit(n.expr)
+        end,
+        group = function(n, visit)
+            return visit(n.expr)
+        end,
     })
 end
-
 
 --- @param ast AST
 --- @return AST[]
 function _M.ends(ast)
     return AST.visit(ast, {
-        str = function(n) return { n } end,
-        dot = function(n) return { n } end,
+        str = function(n)
+            return { n }
+        end,
+        dot = function(n)
+            return { n }
+        end,
         concat = function(n, visit)
             local right_ends = visit(n.right)
             if _M.epsilon(n.right) then
@@ -58,34 +91,52 @@ function _M.ends(ast)
                 return right_ends
             end
         end,
-        alt = function(n, visit) return utils.append_lst(visit(n.left), visit(n.right)) end,
-        star = function(n, visit) return visit(n.expr) end,
-        plus = function(n, visit) return visit(n.expr) end,
-        opt = function(n, visit) return visit(n.expr) end,
-        group = function(n, visit) return visit(n.expr) end
+        alt = function(n, visit)
+            return utils.append_lst(visit(n.left), visit(n.right))
+        end,
+        star = function(n, visit)
+            return visit(n.expr)
+        end,
+        plus = function(n, visit)
+            return visit(n.expr)
+        end,
+        opt = function(n, visit)
+            return visit(n.expr)
+        end,
+        group = function(n, visit)
+            return visit(n.expr)
+        end,
     })
 end
 
 --- Adds a position to each string and dot in the AST.
+--- Returns alphabet that the regex uses.
 --- @param ast AST
---- @return AST
-function _M.number(ast)
+--- @return AST, table<string, true>
+function _M.prepare(ast)
+    local alphabet = {}
     local i = 1
     return AST.map(ast, function(n)
-        if n.kind == "str" or n.kind == "dot" then
+        if n.kind == "str" then
+            utils.insert_uniq(alphabet, n.str)
             n.pos = i
             i = i + 1
         end
         return n
-    end)
+    end),
+        alphabet
 end
 
 --- @param ast AST
 --- @return AST[][]
 function _M.neighbours(ast)
-     return AST.visit(ast, {
-        str = function(n) return {} end,
-        dot = function(n) return {} end,
+    return AST.visit(ast, {
+        str = function(n)
+            return {}
+        end,
+        dot = function(n)
+            return {}
+        end,
         concat = function(n, visit)
             -- First, recurse deeper and sort the neighbours there
             local left_neighbours = visit(n.left)
@@ -139,8 +190,12 @@ function _M.neighbours(ast)
 
             return expr_neighbours
         end,
-        opt = function(n, visit) return visit(n.expr) end,
-        group = function(n, visit) return visit(n.expr) end,
+        opt = function(n, visit)
+            return visit(n.expr)
+        end,
+        group = function(n, visit)
+            return visit(n.expr)
+        end,
     })
 end
 
@@ -183,7 +238,7 @@ function _M.build_nfa_from_neighbours(neighbours, starts, ends)
         local idx_to = at(node_to)
 
         local from_state = nfa.states[idx_from]
-        if node_to.kind ~= 'str' then
+        if node_to.kind ~= "str" then
             error("Only 'str' characters are supported at the moment (. is unsupported)")
         end
 
@@ -191,9 +246,16 @@ function _M.build_nfa_from_neighbours(neighbours, starts, ends)
         table.insert(from_state.transitions[node_to.str], idx_to)
     end
 
-    -- Create transitions from start state to all symbols which
-    -- can be at the beginning
     for _, node in ipairs(starts) do
+        -- If the start node is not in the states_idx_map,
+        -- it means that it was not used in the neighbours,
+        -- so we need to create a new state for it.
+        if not states_idx_map[node.pos] then
+            table.insert(nfa.states, {
+                transitions = {},
+            })
+            states_idx_map[node.pos] = #nfa.states
+        end
         assert(node.kind == "str")
         local t = nfa.states[1].transitions
         t[node.str] = t[node.str] or {}
@@ -213,7 +275,7 @@ end
 function _M.glushkov(ast)
     -- Assign numbers to all nodes that correspond to
     -- actual characters (not to *, +, ?, |, and () nodes).
-    ast = _M.number(ast)
+    local ast, alphabet = _M.prepare(ast)
     -- Contains all symbols that the strings
     -- generated by the regex can contain.
     local starts = _M.starts(ast)
@@ -228,6 +290,12 @@ function _M.glushkov(ast)
     local neighbours = _M.neighbours(ast)
 
     local nfa = _M.build_nfa_from_neighbours(neighbours, starts, ends)
+
+    nfa.alphabet = alphabet
+
+    if _M.epsilon(ast) then
+        table.insert(nfa.accept, nfa.start)
+    end
 
     return nfa
 end

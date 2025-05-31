@@ -2,10 +2,10 @@ describe("parser tests", function()
     local parser = require("parser")
     local AST = require("ast")
 
-  --it("parses empty input", function()
-  --    local ast = parser:parse("")
-  --    assert.is_nil(ast)
-  --end)
+    --it("parses empty input", function()
+    --    local ast = parser:parse("")
+    --    assert.is_nil(ast)
+    --end)
 
     it("parses single character", function()
         local ast = parser:parse("a")
@@ -18,7 +18,7 @@ describe("parser tests", function()
     end)
 
     it("parses alternation", function()
-        local ast  = parser:parse("a|b")
+        local ast = parser:parse("a|b")
         assert.are.same(AST.alt(AST.str("a"), AST.str("b")), ast)
     end)
 

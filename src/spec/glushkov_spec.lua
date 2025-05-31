@@ -117,21 +117,20 @@ end)
 
 describe("neighbours", function()
     it("basic combinations", function()
-        local ast = glushkov.number(AST.str("a"))
+        local ast, _ = glushkov.prepare(AST.str("a"))
         local neighbours = glushkov.neighbours(ast)
-        assert.are.same({
-        }, neighbours)
+        assert.are.same({}, neighbours)
 
-        ast = glushkov.number(AST.concat(AST.str("a"), AST.str("b")))
+        ast = glushkov.prepare(AST.concat(AST.str("a"), AST.str("b")))
         neighbours = glushkov.neighbours(ast)
         assert.are.same({
             {
                 { pos = 1, kind = "str", str = "a" },
-                { pos = 2, kind = "str", str = "b" }
-            }
+                { pos = 2, kind = "str", str = "b" },
+            },
         }, neighbours)
 
-        ast = glushkov.number(AST.concat(AST.concat(AST.str("a"), AST.str("b")), AST.str("c")))
+        ast = glushkov.prepare(AST.concat(AST.concat(AST.str("a"), AST.str("b")), AST.str("c")))
         neighbours = glushkov.neighbours(ast)
         assert.are.same({
             {
@@ -140,34 +139,34 @@ describe("neighbours", function()
             },
             {
                 { pos = 2, kind = "str", str = "b" },
-                { pos = 3, kind = "str", str = "c" }
-            }
+                { pos = 3, kind = "str", str = "c" },
+            },
         }, neighbours)
 
-        ast = glushkov.number(AST.alt(AST.str("a"), AST.str("b")))
+        ast = glushkov.prepare(AST.alt(AST.str("a"), AST.str("b")))
         neighbours = glushkov.neighbours(ast)
         assert.are.same({}, neighbours)
 
-        ast = glushkov.number(AST.alt(AST.str("a"), AST.concat(AST.str("b"), AST.str("c"))))
+        ast = glushkov.prepare(AST.alt(AST.str("a"), AST.concat(AST.str("b"), AST.str("c"))))
         neighbours = glushkov.neighbours(ast)
         assert.are.same({
             {
                 { pos = 2, kind = "str", str = "b" },
-                { pos = 3, kind = "str", str = "c" }
-            }
+                { pos = 3, kind = "str", str = "c" },
+            },
         }, neighbours)
 
-        ast = glushkov.number(AST.concat(AST.str("a"), AST.star(AST.str("b"))))
+        ast = glushkov.prepare(AST.concat(AST.str("a"), AST.star(AST.str("b"))))
         neighbours = glushkov.neighbours(ast)
         assert.are.same({
             {
                 { pos = 2, kind = "str", str = "b" },
-                { pos = 2, kind = "str", str = "b" }
+                { pos = 2, kind = "str", str = "b" },
             },
             {
                 { pos = 1, kind = "str", str = "a" },
-                { pos = 2, kind = "str", str = "b" }
-            }
+                { pos = 2, kind = "str", str = "b" },
+            },
         }, neighbours)
     end)
 end)
@@ -177,6 +176,7 @@ describe("nfa from neighbours", function()
         local nfa = glushkov.build_nfa_from_neighbours({}, {}, {})
         assert.are.same({
             accept = {},
+            alphabet = {},
             start = 1,
             states = {
                 [1] = { transitions = {} },
@@ -188,6 +188,7 @@ describe("nfa from neighbours", function()
         local nfa = glushkov.build_nfa_from_neighbours({ { a, b } }, { a }, { b })
         assert.are.same({
             accept = { 3 },
+            alphabet = {},
             start = 1,
             states = {
                 [1] = { transitions = { a = { 2 } } },
@@ -204,15 +205,47 @@ describe("nfa from neighbours", function()
             { a_0, b_1 },
             { a_0, b_2 },
             { b_1, b_2 },
-        }, { a_0 }, { b_2 } )
+        }, { a_0 }, { b_2 })
         assert.are.same({
             accept = { 4 },
+            alphabet = {},
             start = 1,
             states = {
                 [1] = { transitions = { a = { 2 } } },
                 [2] = { transitions = { a = { 2 }, b = { 3, 4 } } },
                 [3] = { transitions = { b = { 4 } } },
                 [4] = { transitions = {} },
+            },
+        }, nfa)
+    end)
+end)
+
+describe("glushkov", function()
+    it("chars", function()
+        local ast = AST.str("a")
+        local nfa = glushkov.glushkov(ast)
+        assert.are.same({
+            accept = { 2 },
+            alphabet = { "a" },
+            start = 1,
+            states = {
+                [1] = { transitions = { a = { 2 } } },
+                [2] = { transitions = {} },
+            },
+        }, nfa)
+    end)
+
+    it("alteration", function()
+        local ast = AST.alt(AST.str("a"), AST.str("b"))
+        local nfa = glushkov.glushkov(ast)
+        assert.are.same({
+            accept = { 2, 3 },
+            alphabet = { "a", "b" },
+            start = 1,
+            states = {
+                [1] = { transitions = { a = { 2 }, b = { 3 } } },
+                [2] = { transitions = {} },
+                [3] = { transitions = {} },
             },
         }, nfa)
     end)
