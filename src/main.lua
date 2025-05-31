@@ -1,3 +1,5 @@
+package.path = package.path .. ";./src/?.lua"
+
 local parser = require("parser")
 local glushkov = require("conversions.glushkov")
 local fa = require("fa")
