@@ -1,5 +1,7 @@
 # Lua Regex
 
+[![Lint and Test](https://github.com/Gregofi/lua-regex/actions/workflows/test.yaml/badge.svg)](https://github.com/Gregofi/lua-regex/actions/workflows/test.yaml)
+
 Shows how are Finite State Machines used to implement regular expressions.
 Only small subset of regular expressions is supported, namely:
 - Concatenation (`ab` -> is implicit)
