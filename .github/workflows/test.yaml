@@ -13,7 +13,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: leafo/gh-actions-lua@v11
         with:
-          lua-version: '5.1.5'
+          luaVersion: '5.1.5'
       - run: cargo install stylua
       - name: Check format
         run: make format
