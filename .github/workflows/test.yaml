@@ -1,0 +1,21 @@
+name: Lint and Test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/gh-actions-lua@v11
+        with:
+          lua-version: '5.1.5'
+      - run: cargo install stylua
+      - name: Check format
+        run: make format
+      - name: Run tests
+        run: make test
