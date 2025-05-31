@@ -14,7 +14,10 @@ jobs:
       - uses: leafo/gh-actions-lua@v11
         with:
           luaVersion: '5.1.5'
-      - run: cargo install stylua
+      - name: dependencies
+        run: |
+          cargo install stylua
+          luarocks install busted
       - name: Check format
         run: make format
       - name: Run tests
