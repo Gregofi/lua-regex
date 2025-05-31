@@ -18,8 +18,13 @@ make run ast|nfa|dfa '<regex>'
 which will print a DOT graph of the corresponding tree or automaton.
 See examples of generated graphs below.
 
+### Regex abstract syntax tree
 ![AST for ab*c](static/ast.svg)
+
+### Nondeterministic finite automaton (NFA)
 ![NFA for ab*c](static/nfa.svg)
+
+### Deterministic finite automaton (DFA)
 ![AST for ab*c](static/dfa.svg)
 
 Also, you can test a string against a regex:
